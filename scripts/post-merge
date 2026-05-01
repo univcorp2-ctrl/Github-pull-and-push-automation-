@@ -1,0 +1,22 @@
+#!/bin/bash
+# Global git post-merge hook: auto-push after every pull --rebase or merge.
+
+set -uo pipefail
+
+[[ -z "$(git remote 2>/dev/null)" ]] && exit 0
+
+BRANCH=$(git branch --show-current 2>/dev/null)
+[[ -z "$BRANCH" ]] && exit 0
+
+LOG_FILE="${HOME}/.claude/auto-sync.log"
+log() {
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] [post-merge] $*" >> "$LOG_FILE"
+}
+
+UNPUSHED=$(git rev-list "origin/${BRANCH}..HEAD" --count 2>/dev/null || echo 0)
+if [[ "$UNPUSHED" -gt 0 ]]; then
+  log "Pushing $UNPUSHED commit(s) after merge (branch: $BRANCH)"
+  git push -u origin "$BRANCH" 2>&1 >> "$LOG_FILE" && log "Push OK" || log "Push failed"
+fi
+
+exit 0
