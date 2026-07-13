@@ -1,0 +1,27 @@
+#!/bin/bash
+# Global git post-commit hook: auto-push after every commit from any terminal.
+# Installed via: git config --global core.hooksPath ~/.git-hooks
+
+set -uo pipefail
+
+# Must have a remote
+[[ -z "$(git remote 2>/dev/null)" ]] && exit 0
+
+BRANCH=$(git branch --show-current 2>/dev/null)
+[[ -z "$BRANCH" ]] && exit 0
+
+LOG_FILE="${HOME}/.claude/auto-sync.log"
+log() {
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] [post-commit] $*" >> "$LOG_FILE"
+}
+
+# Skip if this commit was made BY the auto-sync script (avoid infinite loop)
+LAST_MSG=$(git log -1 --pretty=%s 2>/dev/null)
+if [[ "$LAST_MSG" == auto-sync:* ]]; then
+  exit 0
+fi
+
+log "Post-commit push (branch: $BRANCH)"
+git push -u origin "$BRANCH" 2>&1 >> "$LOG_FILE" && log "Push OK" || log "Push failed (will retry next sync)"
+
+exit 0
